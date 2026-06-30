@@ -1,0 +1,33 @@
+# Environment Files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+
+# Temporary Files
+*.tmp
+*.bak
+
+# API Keys
+secrets.json
+
+# n8n
+*.sqlite
+
+# Misc
+coverage/
+dist/

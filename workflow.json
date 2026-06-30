@@ -1,0 +1,296 @@
+{
+  "name": "WhatsApp AI Doubt Resolution Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["messages"],
+        "options": {}
+      },
+      "id": "node-whatsapp-trigger",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "webhookId": "whatsapp-webhook-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.messages[0].type }}",
+              "operation": "equals",
+              "value2": "image"
+            }
+          ]
+        }
+      },
+      "id": "node-if",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v23.0/{{ $json.messages[0].image.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer YOUR_WHATSAPP_TOKEN"
+            }
+          ]
+        }
+      },
+      "id": "node-http-1",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [440, 100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer YOUR_WHATSAPP_TOKEN"
+            }
+          ]
+        }
+      },
+      "id": "node-http-2",
+      "name": "HTTP Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const binary = items[0].binary.data.data;\nconst base64 = Buffer.from(binary).toString('base64');\n\nreturn [\n  {\n    json: {\n      base64\n    }\n  }\n];"
+      },
+      "id": "node-code-1",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are an educational AI assistant helping students on WhatsApp.\\n\\nAnalyze the educational image.\\nAnswer the student's doubt directly.\\n\\nRules:\\n- Do not thank the user.\\n- Do not summarize the image.\\n- Do not say 'Thanks for sharing.'\\n- Keep responses concise.\\n- Keep responses WhatsApp friendly.\\n- Explain educational content only.\"\n        },\n        {\n          \"inline_data\": {\n            \"mime_type\": \"image/jpeg\",\n            \"data\": \"{{ $json.base64 }}\"\n          }\n        }\n      ]\n    }\n  ]\n}"
+      },
+      "id": "node-http-3",
+      "name": "HTTP Request2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-edit-fields",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1320, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = items[0].json.output || '';\n\n// Remove excessive markdown\noutput = output.replace(/#{1,6}\\s/g, '*');\noutput = output.replace(/\\*\\*(.*?)\\*\\*/g, '*$1*');\noutput = output.replace(/__|\\*\\*/g, '');\noutput = output.trim();\n\nreturn [\n  {\n    json: {\n      output\n    }\n  }\n];"
+      },
+      "id": "node-code-js1",
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 100]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}",
+        "textBody": "={{ $json.output }}"
+      },
+      "id": "node-send-2",
+      "name": "Send message2",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1760, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = items[0].json.messages[0].text.body;\n\nreturn [\n  {\n    json: {\n      chatInput: text\n    }\n  }\n];"
+      },
+      "id": "node-code-2",
+      "name": "Code in JavaScript2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "systemMessage": "You are an AI-powered educational doubt resolution assistant on WhatsApp.\\n\\nRules:\\n- Keep responses concise.\\n- Use short paragraphs.\\n- Avoid markdown tables.\\n- Avoid large headings.\\n- Use bullet points when helpful.\\n- Maintain conversational continuity.\\n- Explain concepts simply.\\n- Keep responses WhatsApp friendly.",
+        "options": {}
+      },
+      "id": "node-ai-agent",
+      "name": "AI Agent1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-pro",
+        "options": {}
+      },
+      "id": "node-gemini-model",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [660, 600]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}"
+      },
+      "id": "node-memory",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1,
+      "position": [880, 600]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}",
+        "textBody": "={{ $json.output }}"
+      },
+      "id": "node-send-1",
+      "name": "Send message",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [880, 400]
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [{ "node": "If", "type": "main", "index": 0 }]
+      ]
+    },
+    "If": {
+      "main": [
+        [{ "node": "HTTP Request", "type": "main", "index": 0 }],
+        [{ "node": "Code in JavaScript2", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [{ "node": "HTTP Request1", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [{ "node": "Code in JavaScript", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [{ "node": "HTTP Request2", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [{ "node": "Edit Fields", "type": "main", "index": 0 }]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [{ "node": "Code in JavaScript1", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [{ "node": "Send message2", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [{ "node": "AI Agent1", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [{ "node": "Send message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [{ "node": "AI Agent1", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [{ "node": "AI Agent1", "type": "ai_memory", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-06-29T00:00:00.000Z",
+  "versionId": "1"
+}
