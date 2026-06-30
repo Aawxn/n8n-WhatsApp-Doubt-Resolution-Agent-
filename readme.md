@@ -44,7 +44,7 @@ flowchart TD
     Route -->|No: Text Query| AI_Agent[AI Agent Node]
     AI_Agent -->|Retrieve History| Session_Memory[(Session Memory)]
     AI_Agent -->|Process query| Gemini_Pro[Google Gemini 2.5 Pro]
-    Gemini Pro -->|Format Answer| WhatsApp_Send_Text[WhatsApp Reply Node]
+    Gemini_Pro -->|Format Answer| WhatsApp_Send_Text[WhatsApp Reply Node]
     
     %% Image Branch
     Route -->|Yes: Image / Screenshot| Fetch_Media[Fetch Meta Graph API Image Info]
